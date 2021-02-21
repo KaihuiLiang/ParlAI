@@ -10,6 +10,16 @@ tags associated with them.
 
 task_list = [
     {
+        "id": "PhysicalActivity",
+        "display_name": "PhysicalActivity",
+        "task": "physical_activity",
+        "tags": ["Physical Activity"],
+        "links": {"website": ""},
+        "description": (
+            ""
+        ),
+    },
+    {
         "id": "AmazonQA",
         "display_name": "AmazonQA",
         "task": "amazon_qa",
