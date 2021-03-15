@@ -12,7 +12,14 @@ class DefaultTeacher(DialogTeacher):
         self.datatype = opt['datatype']
         # suffix = 'train' if opt['datatype'].startswith('train') else 'dev'
         folder = 'unannotated'
-        opt['datafile'] = os.path.join(opt['datapath'], 'PhysicalActivity', folder, '107_transcripts_utterance_only.csv')  # todo
+
+        if 'train' in self.datatype:
+            file = 'train.csv'
+        else:
+            file = 'valid.csv'
+
+
+        opt['datafile'] = os.path.join(opt['datapath'], 'PhysicalActivity', folder, file)
         self.id = 'trainer'
         super().__init__(opt, shared)
 
@@ -42,12 +49,8 @@ class DefaultTeacher(DialogTeacher):
 
             for row_index, row in group_df.iterrows():
                 # print("[row_index]", row_index)
-                if row_index > 50:
-                    return
 
                 new_episode = True if row['document'] != current_document else False
-                # print("prev document", current_document)
-                # print("current document", row['document'])
                 if new_episode:
                     context = str()
                     print("reset context")
@@ -62,40 +65,32 @@ class DefaultTeacher(DialogTeacher):
 
                 if current_speaker == 1:
                     bot_utterance += row['utterance'] + " "
-                    print("[bot_utterance]", bot_utterance)
+                    # print("[bot_utterance]", bot_utterance)
 
-                # print("[current utterance]", row['utterance'])
 
                 if current_speaker == 2:
                     context_speaker_2 += row['utterance'] + " "
-                    # print("context_speaker_2", context_speaker_2)
-                # print("current_speaker", current_speaker)
-                # print("prev_speaker", prev_speaker)
 
-                # context += group_df.loc[row_index - 1]['utterance']
+                # [Start]: first row in document
+                if row_index == 0 or self.sessions_df.iloc[row_index - 1]["document"] != group_name:
+                    context_speaker_2 = "[START]"
 
-                # if current_speaker == 1 and prev_speaker != 1:
-                #     if new_episode:
-                #         context = ""
-                #     else:
-                #         context = group_df.loc[row_index - 1]['utterance']
-                #     print("[context]", context)
-                #     # bot_utterance += str(row['utterance']) + " "
-
-                # print("last_index_in_group", group_df.iloc[-1].name)
+                # Last
                 if (current_speaker and row_index == len(self.sessions_df) - 1) or \
                     (current_speaker == 1 and self.sessions_df.iloc[row_index + 1]["document"] != group_name) or \
                     (current_speaker == 1 and self.sessions_df.iloc[row_index + 1]["speaker"] != 1):
-                        # or row_index == self.sessions_df.iloc[-1].index:
                     # just finished reading counseler's side, yield
-                    # yield (context, current_utterance), new_episode
-                    if context_speaker_2:
+                    if context_speaker_2 == "[START]":
+                        context = context_speaker_2
+                    elif context_speaker_2:
                         context += "</s> " + context_speaker_2
                         context = " ".join(context.split()[-128:])
                     # print("[context]", context)
+
                     print("====yield====\n", {"text": context, "labels": [bot_utterance]}, new_episode)
-                    if not bot_utterance:
+                    if not bot_utterance or len(bot_utterance) == 0:
                         raise Exception("empty bot utterance!")
+
                     yield {"text": context, "labels": [bot_utterance]}, True
 
                     context += " </s> " + bot_utterance

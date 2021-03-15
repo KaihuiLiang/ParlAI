@@ -85,10 +85,19 @@ class LocalHumanAgent(Agent):
         if '[DONE]' in reply_text:
             # let interactive know we're resetting
             raise StopIteration
-        reply['text'] = reply_text
+
+        ##### Add start
+        if reply_text == " ":
+            reply['text'] = "[START]"
+        #####
+        else:
+            reply['text'] = reply_text
+
+
         if '[EXIT]' in reply_text:
             self.finished = True
             raise StopIteration
+
         return reply
 
     def episode_done(self):
