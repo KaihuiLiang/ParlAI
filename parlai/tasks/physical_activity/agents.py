@@ -2,11 +2,16 @@ import os
 import json
 import pandas as pd
 
+from parlai.core.params import ParlaiParser
+from parlai.core.dict import DictionaryAgent, TokenizationMode
+from parlai.core.opt import Opt
+
 from parlai.utils.io import PathManager
 from parlai.core.teachers import DialogTeacher
 
 
 class DefaultTeacher(DialogTeacher):
+    END = '__end__'
 
     def __init__(self, opt, shared=None):
         self.datatype = opt['datatype']
@@ -25,10 +30,15 @@ class DefaultTeacher(DialogTeacher):
 
     def setup_data(self, path):
         print('loading: ' + path)
+        truncate_size = 128
+
         with PathManager.open(path) as data_file:
             self.sessions_df = pd.read_csv(data_file)
 
         self.sessions_group = self.sessions_df.groupby('document')
+
+
+        # Try to read just a portion of data
 
         # for i in range(10):
         #     if i %2 == 0:
@@ -37,7 +47,12 @@ class DefaultTeacher(DialogTeacher):
         #         new_episode = True
         #     yield {"text": "Hi", "labels": ["Hello"]}, new_episode
 
+
+        group_count = 0
         for group_name, group_df in self.sessions_group:
+            group_count += 1
+            # if group_count > 4:
+            #     break
             print("group_name", group_name)
             # yield {"text": "Hi", "labels": ["Hello"]}, True
 
@@ -83,19 +98,60 @@ class DefaultTeacher(DialogTeacher):
                     if context_speaker_2 == "[START]":
                         context = context_speaker_2
                     elif context_speaker_2:
-                        context += "</s> " + context_speaker_2
-                        context = " ".join(context.split()[-128:])
+                        # context += "</s> " + context_speaker_2
+                        context += " " + context_speaker_2
+
+                        context = " ".join(context.split()[-truncate_size:])
                     # print("[context]", context)
 
-                    print("====yield====\n", {"text": context, "labels": [bot_utterance]}, new_episode)
                     if not bot_utterance or len(bot_utterance) == 0:
                         raise Exception("empty bot utterance!")
 
-                    yield {"text": context, "labels": [bot_utterance]}, True
+                    truncated_text = self.truncate_text_and_prepend_domain(context, row["domain"])
+                    # print("Truncated tokens", truncated_text)
 
-                    context += " </s> " + bot_utterance
+                    print("====yield====\n", {"text": truncated_text, "labels": [bot_utterance]}, new_episode)
+                    yield {"text": truncated_text, "labels": [bot_utterance]}, True
+
+                    # context += " </s> " + bot_utterance
+                    context += " " + bot_utterance
                     # print("[context + bot utterance]", context)
 
                     bot_utterance = ""
                     context_speaker_2 = ""
 
+    def get_dict_agent(self):
+        BYTELEVEL_BPE_VOCAB = "data/models/blender/blender_3B/model.dict-vocab.json"
+        BYTELEVEL_BPE_MERGE = "data/models/blender/blender_3B/model.dict-merges.txt"
+
+        parser = ParlaiParser()
+        parser.set_params(
+            dict_tokenizer='bytelevelbpe',
+            bpe_vocab=BYTELEVEL_BPE_VOCAB,
+            bpe_merge=BYTELEVEL_BPE_MERGE,
+        )
+        opt = parser.parse_args([])
+        agent = DictionaryAgent(opt)
+        return agent
+
+    def tokenize(self, text):
+        agent = self.get_dict_agent()
+        tokens = agent.bytelevelbpe_tokenize(text)
+        return tokens
+
+
+    def truncate_text_and_prepend_domain(self, text, domain):
+        strategy_tokens = self.tokenize("[" + domain + "]")
+        strategy_token_lens = len(strategy_tokens)
+
+        agent = self.get_dict_agent()
+
+        text_tokens = self.tokenize(text)
+        truncat = 126 - strategy_token_lens
+        text_tokens = text_tokens[-truncat:]
+
+        if text_tokens:
+            while ord(text_tokens[0][0]) != 288 and text_tokens: # make sure first token starts with G
+                text_tokens = text_tokens[1:]
+        text = agent.vec2txt([agent.tok2ind[w] for w in text_tokens])
+        return "[" + domain + "]" + " " + text
