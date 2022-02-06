@@ -30,11 +30,7 @@ class DefaultTeacher(DialogTeacher):
 
     def setup_data(self, path):
         print('loading: ' + path)
-<<<<<<< HEAD
-        truncate_size = 128 
-=======
         truncate_size = 128
->>>>>>> 8b82365fabc2db034e21196320bcedb443da46a6
 
         with PathManager.open(path) as data_file:
             self.sessions_df = pd.read_csv(data_file)
@@ -55,13 +51,8 @@ class DefaultTeacher(DialogTeacher):
         group_count = 0
         for group_name, group_df in self.sessions_group:
             group_count += 1
-<<<<<<< HEAD
-            if group_count > 4:
-                break
-=======
             # if group_count > 4:
             #     break
->>>>>>> 8b82365fabc2db034e21196320bcedb443da46a6
             print("group_name", group_name)
             # yield {"text": "Hi", "labels": ["Hello"]}, True
 
