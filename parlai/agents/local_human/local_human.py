@@ -87,22 +87,12 @@ class LocalHumanAgent(Agent):
             raise StopIteration
 
         ##### Add start
-<<<<<<< HEAD
-        # if reply_text == " ":
-        #     reply['text'] = "[START]"
-        # #####
-        # else:
-        #     reply['text'] = reply_text
-
-        reply['text'] = reply_text
-=======
         if reply_text == " ":
             reply['text'] = "[START]"
         #####
         else:
             reply['text'] = reply_text
 
->>>>>>> 8b82365fabc2db034e21196320bcedb443da46a6
 
         if '[EXIT]' in reply_text:
             self.finished = True
