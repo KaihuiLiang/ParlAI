@@ -1,6 +1,7 @@
 import os
 import json
 import pandas as pd
+from tqdm import tqdm
 
 from parlai.core.params import ParlaiParser
 from parlai.core.dict import DictionaryAgent, TokenizationMode
@@ -49,7 +50,7 @@ class DefaultTeacher(DialogTeacher):
 
 
         group_count = 0
-        for group_name, group_df in self.sessions_group:
+        for group_name, group_df in tqdm(self.sessions_group):
             group_count += 1
             # if group_count > 4:
             #     break
@@ -62,7 +63,7 @@ class DefaultTeacher(DialogTeacher):
             bot_utterance = ""
             context_speaker_2 = ""
 
-            for row_index, row in group_df.iterrows():
+            for row_index, row in tqdm(group_df.iterrows()):
                 # print("[row_index]", row_index)
 
                 new_episode = True if row['document'] != current_document else False
@@ -105,12 +106,13 @@ class DefaultTeacher(DialogTeacher):
                     # print("[context]", context)
 
                     if not bot_utterance or len(bot_utterance) == 0:
-                        raise Exception("empty bot utterance!")
+                        # no bot utterance at last turn
+                        break
 
                     truncated_text = self.truncate_text_and_prepend_domain(context, row["domain"])
                     # print("Truncated tokens", truncated_text)
 
-                    print("====yield====\n", {"text": truncated_text, "labels": [bot_utterance]}, new_episode)
+                    # print("====yield====\n", {"text": truncated_text, "labels": [bot_utterance]}, new_episode)
                     yield {"text": truncated_text, "labels": [bot_utterance]}, True
 
                     # context += " </s> " + bot_utterance
